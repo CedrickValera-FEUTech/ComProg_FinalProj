@@ -22,13 +22,13 @@ bool isAlphanumeric(const string& str) {
     return !str.empty(); // Return true if the string is not empty, otherwise false.
 }
 
-// Function to get a valid price from the user.
+// A Function to get a valid price from the user.
 double getValidPrice();
 
-// Function to get a valid quantity from the user.
+// A Function to get a valid quantity from the user.
 int getValidQuantity();
 
-// Function to pause the program until the user presses Enter.
+// A Function to pause the program until the user presses Enter.
 void pressEnter();
 
 // Class to represent a merchandise item.
@@ -45,7 +45,7 @@ public:
     // Default constructor.
     merchObject() : merchID(""), productPrice(0.0), generatedID(0), quantity(0), supplier(""), dateAdded(""), lastUpdated("") {}
 
-    // Function to get the current date and time as a string.
+    // A Function to get the current date and time as a string.
     string getCurrentDateTime() {
         time_t now = time(0);
         char timeStr[26];
@@ -53,7 +53,7 @@ public:
         return string(timeStr);
     }
 
-    // Function to generate a unique ID for the item.
+    // A Function to generate a unique ID for the item.
     int generateUniqueID() {
         return rand() % 90000 + 10000;
     }
