@@ -8,26 +8,52 @@
 #include <cctype>
 
 using namespace std;
-
+//Limits
 const int MAX_INVENTORY = 10;
 const int MAX_SALES = 100;
+//Alphanum checking
+bool isAlNumSpec(const string& str) {
+    if (str.empty()) return false;
 
-// Function to check if a string contains only alphanumeric characters and spaces.
-bool isAlphanumeric(const string& str) {
     for (char c : str) {
-        if (!isalnum(c) && !isspace(c)) return false;
+        if (!isalnum(c) && !isspace(c) &&
+            c != '-' && c != '_' && c != '&' && c != '@' &&
+            c != '.' && c != '!' && c != '#' && c != '$' &&
+            c != '%' && c != '+' && c != '=' && c != '(' &&
+            c != ')' && c != '[' && c != ']' && c != '*') {
+            return false;
+        }
     }
-    return !str.empty();
+    return true;
 }
+//Classes
+class merchObject;
+struct SaleRecord;
+struct Supplier;
 
-// Add these declarations after the existing function declarations
+//Function Prototypes
+bool isAlNumSpec(const string& str);
 double getValidPrice();
 int getValidQuantity();
 void pressEnter();
 bool isStrictlyNumeric(const string& str);
 bool hasInvalidPriceChars(const string& str);
 int countChar(const string& str, char target);
+void updateItem(merchObject* items[], int count);
+void displayMerch(merchObject* items[], int count);
+void searchItem(merchObject* items[], int count);
+void deleteItem(merchObject* items[], int& count);
+void saveInventory(merchObject* items[], int count, SaleRecord sales[], int salesCount);
+void loadInventory(merchObject* items[], int& count);
+void loadSales(SaleRecord sales[], int& salesCount);
+void customerPurchaseMenu(merchObject* items[], int count, SaleRecord sales[], int& salesCount);
+void recordSale(merchObject* items[], int count, SaleRecord sales[], int& salesCount);
+void displaySales(merchObject* items[], int count, SaleRecord sales[], int salesCount);
+bool containsIgnoreCase(const string& str, const string& search);
+int getValidMenuChoice();
 
+
+//First class for Identification
 class merchObject {
 public:
     string merchID;
@@ -39,7 +65,7 @@ public:
     string lastUpdated;
 
     merchObject() : merchID(""), productPrice(0.0), generatedID(0), quantity(0), supplier(""), dateAdded(""), lastUpdated("") {}
-
+    //Getting date and time
     string getCurrentDateTime() {
         time_t now = time(0);
         tm localTime;
@@ -48,11 +74,12 @@ public:
         strftime(timeStr, sizeof(timeStr), "Saved on: %Y-%m-%d %H:%M:%S", &localTime);
         return string(timeStr) + "\n";
     }
-
+    //Random ID Generator
     int generateUniqueID() {
         return rand() % 90000 + 10000;
     }
 
+    //Add Item Menu (using $)
     void addItem() {
         string tempName = "", tempSupplier = "";
         double tempPrice = 0;
@@ -79,7 +106,7 @@ public:
                 input.erase(0, input.find_first_not_of(" "));
                 input.erase(input.find_last_not_of(" ") + 1);
 
-                if (!input.empty() && isAlphanumeric(input)) {
+                if (!input.empty() && isAlNumSpec(input)) {
                     tempName = input;
                     nameValid = true;
                 }
@@ -156,7 +183,7 @@ public:
                 input.erase(0, input.find_first_not_of(" "));
                 input.erase(input.find_last_not_of(" ") + 1);
 
-                if (!input.empty() && isAlphanumeric(input)) {
+                if (!input.empty() && isAlNumSpec(input)) {
                     tempSupplier = input;
                     supplierValid = true;
                 }
@@ -182,173 +209,381 @@ public:
         pressEnter();
     }
 };
-
+//Sale Record Structure for Identification
 struct SaleRecord {
-    int productId;      // ID of the product sold
-    int quantitySold;   // Number of units sold
-    double totalAmount; // Total sale amount for this transaction
-    string date;        // Date and time of the sale
+    int productId;
+    int quantitySold;
+    double totalAmount;
+    string date;
 
     SaleRecord() : productId(0), quantitySold(0), totalAmount(0.0), date("") {}
 };
 
-// Add after the SaleRecord structure
-struct Supplier {
-    int id;
-    string name;
-    string contact;
-    string address;
-
-    Supplier() : id(0), name(""), contact(""), address("") {}
-
-    string toString() const {
-        return name + " | " + contact + " | " + address;
-    }
-};
-
-// Function to count the occurrences of a specified character in a string.
+//character counting
 int countChar(const string& str, char target) {
     int count = 0;
     for (char c : str) {
-        if (c == target) count++; // Increment count if the character matches the target.
+        if (c == target) count++;
     }
-    return count; // Return the total count of the target character.
+    return count;
 }
-
-// Function to check if a string contains invalid characters for a price (non-digit and not a period).
+//Invalid Price Validation
 bool hasInvalidPriceChars(const string& str) {
     for (char c : str) {
-        if (!isdigit(c) && c != '.') return true; // If any character is not a digit or a period, return true.
+        if (!isdigit(c) && c != '.') return true;
     }
-    return false; // Return false if all characters are valid for a price.
+    return false;
 }
-
-// Function to check if a string contains only digits.
+//Strict Numbering Validation
 bool isStrictlyNumeric(const string& str) {
     for (char c : str) {
-        if (!isdigit(c)) return false; // If any character is not a digit, return false.
+        if (!isdigit(c)) return false;
     }
-    return !str.empty(); // Return true if the string is not empty and all characters are digits.
+    return !str.empty();
 }
-
-// Function to pause the program until the user presses the Enter key.
+//Enter Function using ASCII Code 13
 void pressEnter() {
     cout << "\nPress Enter to continue...";
-    while (_getch() != 13); // Wait for the Enter key (ASCII 13).
+    while (_getch() != 13);
 }
-
-// Function to prompt the user to enter a valid price and return it as a double.
+//Price Validation
 double getValidPrice() {
     string input;
     while (true) {
         cout << "Enter item price: ";
         getline(cin, input);
 
-        input.erase(0, input.find_first_not_of(" ")); // Remove leading spaces.
-        input.erase(input.find_last_not_of(" ") + 1); // Remove trailing spaces.
+        input.erase(0, input.find_first_not_of(" "));
+        input.erase(input.find_last_not_of(" ") + 1);
 
-        // Check if the input is valid for a price.
         if (!hasInvalidPriceChars(input) && countChar(input, '.') <= 1) {
             try {
-                double price = stod(input); // Convert string to double.
-                if (price > 0) return price; // Return the price if it's positive.
+                double price = stod(input);
+                if (price > 0) return price;
             }
-            catch (...) {} // Catch any exceptions during conversion (invalid format).
+            catch (...) {}
         }
 
-        system("cls"); // Clear the screen for error message.
+        system("cls");
         cout << "Invalid price! Enter a valid positive number.\n";
     }
 }
-
-
-// Function to prompt the user to enter a valid quantity and return it as an integer.
+//Quantity Validation
 int getValidQuantity() {
     string input;
     while (true) {
         cout << "Enter quantity: ";
         getline(cin, input);
 
-        input.erase(0, input.find_first_not_of(" ")); // Remove leading spaces.
-        input.erase(input.find_last_not_of(" ") + 1); // Remove trailing spaces.
+        input.erase(0, input.find_first_not_of(" "));
+        input.erase(input.find_last_not_of(" ") + 1);
 
-        // Check if the input is strictly numeric.
         if (isStrictlyNumeric(input)) {
-            int qty = stoi(input); // Convert string to integer.
-            if (qty >= 0) return qty; // Return the quantity if it's non-negative.
+            int qty = stoi(input);
+            if (qty >= 0) return qty;
         }
 
-        system("cls"); // Clear the screen for error message.
+        system("cls");
         cout << "Invalid quantity! Enter a valid non-negative number.\n";
     }
 }
 
-// Function to prompt the user to enter a valid menu choice and return it as an integer.
+// Valid Menu Function
 int getValidMenuChoice() {
     string input;
     while (true) {
-        cout << "Enter your choice (1-7): ";
+        cout << "Enter your choice (1-8): ";  // Updated to 8 choices
         getline(cin, input);
 
-        input.erase(0, input.find_first_not_of(" ")); // Remove leading spaces.
-        input.erase(input.find_last_not_of(" ") + 1); // Remove trailing spaces.
+        input.erase(0, input.find_first_not_of(" "));
+        input.erase(input.find_last_not_of(" ") + 1);
 
-        // Check if the input is strictly numeric.
         if (isStrictlyNumeric(input)) {
-            int choice = stoi(input); // Convert string to integer.
-            if (choice >= 1 && choice <= 7) return choice; // Return the choice if it's within the valid range.
+            int choice = stoi(input);
+            if (choice >= 1 && choice <= 8) return choice;  // Updated to 8 choices
         }
 
-        // Display the menu again with an error message.
         system("cls");
         cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
-        cout << "          MERCHANDISE MANAGEMENT          " << endl;
+        cout << "              MERCHANDISE MANAGEMENT           " << endl;
         cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
-        cout << "          1. Add Merch Product           " << endl;
-        cout << "          2. Update Merch Product          " << endl;
-        cout << "          3. Track Sales Product           " << endl;
-        cout << "          4. Display Merch Product         " << endl;
-        cout << "          5. Search Merch Product          " << endl;
-        cout << "          6. Delete Merch Product          " << endl;
-        cout << "          7. Save and Exit                " << endl;
+        cout << "             1. Add Merch Product             " << endl;
+        cout << "             2. Update Merch Product          " << endl;
+        cout << "             3. Track Sales Product           " << endl;
+        cout << "             4. Display Merch Product         " << endl;
+        cout << "             5. Search Merch Product          " << endl;
+        cout << "             6. Delete Merch Product          " << endl;
+        cout << "             7. Customer Purchase Menu        " << endl;
+        cout << "             8. Save and Exit                 " << endl;
         cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
-        cout << "Invalid choice! Enter a number between 1 and 7.\n";
+        cout << "Invalid choice! Enter a number between 1 and 8.\n";
     }
 }
 
+void saveInventory(merchObject* items[], int count, SaleRecord sales[], int salesCount);
+void customerPurchaseMenu(merchObject* items[], int count, SaleRecord sales[], int& salesCount);
+void recordSale(merchObject* items[], int count, SaleRecord sales[], int& salesCount);
+void displaySales(merchObject* items[], int count, SaleRecord sales[], int salesCount);
 
-void saveInventory(merchObject* items[], int count) {
-    ofstream outFile("inventory.txt");
-    if (!outFile) {
+//Main Function
+int main() {
+    srand(static_cast<unsigned int>(time(0)));
+
+    merchObject** inventory = new merchObject * [MAX_INVENTORY]();
+    SaleRecord* sales = new SaleRecord[MAX_SALES]();
+    int inventoryCount = 0;
+    int salesCount = 0;
+
+    // Load existing data
+    loadInventory(inventory, inventoryCount);
+    loadSales(sales, salesCount);
+
+    int choice;
+
+    do {
+        system("cls");
+        cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+        cout << "              MERCHANDISE MANAGEMENT           " << endl;
+        cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+        cout << "             1. Add Merch Product             " << endl;
+        cout << "             2. Update Merch Product          " << endl;
+        cout << "             3. Track Sales Product           " << endl;
+        cout << "             4. Display Merch Product         " << endl;
+        cout << "             5. Search Merch Product          " << endl;
+        cout << "             6. Delete Merch Product          " << endl;
+        cout << "             7. Customer Purchase Menu        " << endl;
+        cout << "             8. Save and Exit                 " << endl;
+        cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+
+        choice = getValidMenuChoice();
+
+        switch (choice) {
+            //Make sure it reads the limits
+        case 1:
+            if (inventoryCount < MAX_INVENTORY) {
+                inventory[inventoryCount] = new merchObject();
+                inventory[inventoryCount]->addItem();
+                inventoryCount++;
+            }
+            else {
+                cout << "Inventory is full!\n";
+                pressEnter();
+            }
+            break;
+        case 2:
+            updateItem(inventory, inventoryCount);
+            break;
+        case 3:
+            displaySales(inventory, inventoryCount, sales, salesCount);
+            break;
+        case 4:
+            displayMerch(inventory, inventoryCount);
+            break;
+        case 5:
+            searchItem(inventory, inventoryCount);
+            break;
+        case 6:
+            deleteItem(inventory, inventoryCount);
+            break;
+        case 7:
+            customerPurchaseMenu(inventory, inventoryCount, sales, salesCount);
+            break;
+        case 8:
+            saveInventory(inventory, inventoryCount, sales, salesCount);
+            cout << "Records saved. Exiting...\n";
+            break;
+        }
+    } while (choice != 8);
+
+    // Cleanup for memory allocation
+    for (int i = 0; i < inventoryCount; i++) {
+        delete inventory[i];
+    }
+    delete[] inventory;
+    delete[] sales;
+
+    return 0;
+}
+//File Handling (2 Files: Inventory and Sales)
+void saveInventory(merchObject* items[], int count, SaleRecord sales[], int salesCount) {
+    if (items == nullptr) {
+        cout << "Error: Invalid inventory data!\n";
+        return;
+    }
+
+    // Save inventory records
+    ofstream invFile("inventory_records.txt");
+    if (!invFile) {
         cout << "Error saving inventory!\n";
         return;
     }
 
-    outFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
-    outFile << left << setw(10) << "ID"
-        << setw(20) << "Name"
-        << setw(10) << "Price"
+    invFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+    invFile << "                                              INVENTORY RECORDS                                               " << endl;
+    invFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+    invFile << left << setw(10) << "ID"
+        << setw(25) << "Name"
+        << setw(15) << "Price"
         << setw(10) << "Quantity"
-        << setw(20) << "Supplier"
-        << "Date" << endl;
-    outFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+        << setw(25) << "Supplier"
+        << "Last Updated" << endl;
+    invFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
 
     for (int i = 0; i < count; i++) {
-        outFile << left << setw(10) << items[i]->generatedID
-            << setw(20) << items[i]->merchID
-            << setw(10) << fixed << setprecision(2) << items[i]->productPrice
-            << setw(10) << items[i]->quantity
-            << setw(20) << items[i]->supplier
-            << items[i]->lastUpdated;
+        if (items[i] != nullptr) {
+            invFile << left
+                << setw(10) << items[i]->generatedID
+                << setw(25) << items[i]->merchID
+                << "$" << setw(14) << fixed << setprecision(2) << items[i]->productPrice
+                << setw(10) << items[i]->quantity
+                << setw(25) << items[i]->supplier
+                << items[i]->lastUpdated;
+        }
+    }
+    invFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+    invFile.close();
+
+    // Save sales records
+    ofstream salesFile("sales_records.txt");
+    if (!salesFile) {
+        cout << "Error saving sales records!\n";
+        return;
     }
 
-    outFile.close();
-    cout << "Inventory saved successfully!\n";
+    salesFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+    salesFile << "                                               SALES RECORDS                                                 " << endl;
+    salesFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+    salesFile << left << setw(10) << "ID"
+        << setw(25) << "Product Name"
+        << setw(10) << "Quantity"
+        << setw(15) << "Total Amount"
+        << "Date" << endl;
+    salesFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+
+    double totalSales = 0;
+    for (int i = 0; i < salesCount; i++) {
+        string productName = "[Deleted Product]";
+        for (int j = 0; j < count; j++) {
+            if (items[j] != nullptr && items[j]->generatedID == sales[i].productId) {
+                productName = items[j]->merchID;
+                break;
+            }
+        }
+
+        salesFile << left
+            << setw(10) << sales[i].productId
+            << setw(25) << productName
+            << setw(10) << sales[i].quantitySold
+            << "$" << setw(14) << fixed << setprecision(2) << sales[i].totalAmount
+            << sales[i].date;
+        totalSales += sales[i].totalAmount;
+    }
+
+    salesFile << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+    salesFile << "Total Sales: $" << fixed << setprecision(2) << totalSales << endl;
+    salesFile.close();
+
+    cout << "Records saved successfully!\n";
 }
 
+void loadInventory(merchObject* items[], int& count) {
+    ifstream invFile("inventory_records.txt");
+    if (!invFile) return;
+
+    string line;
+    // Skip header lines
+    for (int i = 0; i < 5; i++) getline(invFile, line);
+
+    while (getline(invFile, line) && count < MAX_INVENTORY) {
+        if (line.find("=-=") != string::npos) break;
+
+        items[count] = new merchObject();
+
+        // Parse line using string operations
+        size_t pos = 0;
+        string token;
+
+        // Get ID
+        pos = line.find_first_not_of(" ");
+        token = line.substr(pos, 10);
+        items[count]->generatedID = stoi(token);
+
+        // Get Name
+        pos = line.find_first_not_of(" ", pos + 10);
+        token = line.substr(pos, 25);
+        items[count]->merchID = token.substr(0, token.find_last_not_of(" ") + 1);
+
+        // Get Price (skip $ symbol)
+        pos = line.find("$", pos) + 1;
+        token = line.substr(pos, 14);
+        items[count]->productPrice = stod(token);
+
+        // Get Quantity
+        pos = line.find_first_not_of(" ", pos + 14);
+        token = line.substr(pos, 10);
+        items[count]->quantity = stoi(token);
+
+        // Get Supplier
+        pos = line.find_first_not_of(" ", pos + 10);
+        token = line.substr(pos, 25);
+        items[count]->supplier = token.substr(0, token.find_last_not_of(" ") + 1);
+
+        // Get DateTime
+        pos = line.find("Saved on:", pos);
+        items[count]->lastUpdated = line.substr(pos) + "\n";
+        items[count]->dateAdded = items[count]->lastUpdated;
+
+        count++;
+    }
+    invFile.close();
+}
+
+void loadSales(SaleRecord sales[], int& salesCount) {
+    ifstream salesFile("sales_records.txt");
+    if (!salesFile) return;
+
+    string line;
+    // Skip header lines
+    for (int i = 0; i < 5; i++) getline(salesFile, line);
+
+    while (getline(salesFile, line) && salesCount < MAX_SALES) {
+        if (line.find("=-=") != string::npos) break;
+
+        size_t pos = 0;
+        string token;
+
+        // Get Product ID
+        pos = line.find_first_not_of(" ");
+        token = line.substr(pos, 10);
+        sales[salesCount].productId = stoi(token);
+
+        // Skip product name (25 chars)
+        pos += 25;
+
+        // Get Quantity
+        pos = line.find_first_not_of(" ", pos);
+        token = line.substr(pos, 10);
+        sales[salesCount].quantitySold = stoi(token);
+
+        // Get Total Amount (skip $ symbol)
+        pos = line.find("$", pos) + 1;
+        token = line.substr(pos, 14);
+        sales[salesCount].totalAmount = stod(token);
+
+        // Get DateTime
+        pos = line.find("Saved on:", pos);
+        sales[salesCount].date = line.substr(pos) + "\n";
+
+        salesCount++;
+    }
+    salesFile.close();
+}
+
+
+// Merch Display
 void displayMerch(merchObject* items[], int count) {
     system("cls");
-    if (count == 0) {
+    if (count == 0 || items == nullptr) {
         cout << "No items in inventory.\n";
         pressEnter();
         return;
@@ -366,37 +601,38 @@ void displayMerch(merchObject* items[], int count) {
     cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
 
     for (int i = 0; i < count; i++) {
-        cout << left << setw(10) << items[i]->generatedID
-            << setw(20) << items[i]->merchID
-            << "$" << setw(9) << fixed << setprecision(2) << items[i]->productPrice
-            << setw(10) << items[i]->quantity
-            << setw(20) << items[i]->supplier
-            << items[i]->lastUpdated;
+        if (items[i] != nullptr) {  // Add null check for each item
+            cout << left << setw(10) << items[i]->generatedID
+                << setw(20) << items[i]->merchID
+                << "$" << setw(9) << fixed << setprecision(2) << items[i]->productPrice
+                << setw(10) << items[i]->quantity
+                << setw(20) << items[i]->supplier
+                << items[i]->lastUpdated;
+        }
     }
 
     cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
     pressEnter();
 }
 
-// Add this helper function after the other utility functions
-// Function to check if a string contains another string, ignoring case.
+//Ignore Case Function
 bool containsIgnoreCase(const string& str, const string& search) {
-    if (search.length() > str.length()) return false; // If search string is longer, it can't be contained.
+    if (search.length() > str.length()) return false;
 
     for (size_t i = 0; i <= str.length() - search.length(); i++) {
         bool found = true;
         for (size_t j = 0; j < search.length(); j++) {
-            if (tolower(str[i + j]) != tolower(search[j])) { // Compare characters ignoring case.
+            if (tolower(str[i + j]) != tolower(search[j])) {
                 found = false;
                 break;
             }
         }
-        if (found) return true; // Return true if the search string is found.
+        if (found) return true;
     }
-    return false; // Return false if the search string is not found.
+    return false;
 }
 
-// Update the searchItem function
+//Search Item 
 void searchItem(merchObject* items[], int count) {
     system("cls");
     if (count == 0) {
@@ -452,7 +688,7 @@ void searchItem(merchObject* items[], int count) {
     pressEnter();
 }
 
-// Update the updateItem function
+// Update Item
 void updateItem(merchObject* items[], int count) {
     system("cls");
     if (count == 0) {
@@ -541,7 +777,7 @@ void updateItem(merchObject* items[], int count) {
     cout << "\nNew name (current: " << item->merchID << "): ";
     getline(cin, input_str);
     if (!input_str.empty()) {
-        if (isAlphanumeric(input_str)) {
+        if (isAlNumSpec(input_str)) {
             item->merchID = input_str;
             item->lastUpdated = item->getCurrentDateTime();
         }
@@ -580,7 +816,7 @@ void updateItem(merchObject* items[], int count) {
     cout << "New supplier (current: " << item->supplier << "): ";
     getline(cin, input_str);
     if (!input_str.empty()) {
-        if (isAlphanumeric(input_str)) {
+        if (isAlNumSpec(input_str)) {
             item->supplier = input_str;
             item->lastUpdated = item->getCurrentDateTime();
         }
@@ -595,49 +831,149 @@ void updateItem(merchObject* items[], int count) {
 }
 
 void deleteItem(merchObject* items[], int& count) {
-    system("cls");
-    if (count == 0) {
-        cout << "No items available to delete.\n";
-        pressEnter();
-        return;
-    }
+    while (true) {
+        system("cls");
+        cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+        cout << "               DELETE PRODUCT                 " << endl;
+        cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
 
-    cout << "Enter product ID to delete: ";
-    string input;
-    getline(cin, input);
+        if (count == 0 || items == nullptr) {
+            cout << "No items available to delete.\n";
+            pressEnter();
+            return;
+        }
 
-    if (!isStrictlyNumeric(input)) {
-        cout << "Invalid ID format!\n";
-        pressEnter();
-        return;
-    }
+        cout << "Enter product ID to delete (or 'x' to exit): ";
+        string input;
+        getline(cin, input);
 
-    int id = stoi(input);
-    int index = -1;
-    for (int i = 0; i < count; i++) {
-        if (items[i]->generatedID == id) {
-            index = i;
-            break;
+        // Check for exit condition
+        if (input == "x" || input == "X") {
+            return;
+        }
+
+        // Remove leading and trailing spaces
+        input.erase(0, input.find_first_not_of(" "));
+        input.erase(input.find_last_not_of(" ") + 1);
+
+        // Check for empty input
+        if (input.empty()) {
+            system("cls");
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "               DELETE PRODUCT                 " << endl;
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "Error: Input cannot be empty!\n";
+            pressEnter();
+            continue;
+        }
+
+        // Validate numeric input
+        if (!isStrictlyNumeric(input)) {
+            system("cls");
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "               DELETE PRODUCT                 " << endl;
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "Error: ID must contain only numbers!\n";
+            pressEnter();
+            continue;
+        }
+
+        int id = stoi(input);
+        int index = -1;
+        for (int i = 0; i < count; i++) {
+            if (items[i] != nullptr && items[i]->generatedID == id) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index == -1) {
+            system("cls");
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "               DELETE PRODUCT                 " << endl;
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "Product not found!\n";
+            pressEnter();
+            continue;
+        }
+
+        while (true) {
+            system("cls");
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "               DELETE PRODUCT                 " << endl;
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "Product to delete:" << endl;
+            cout << "ID: " << items[index]->generatedID << endl;
+            cout << "Name: " << items[index]->merchID << endl;
+            cout << "Price: $" << fixed << setprecision(2) << items[index]->productPrice << endl;
+            cout << "Quantity: " << items[index]->quantity << endl;
+            cout << "Supplier: " << items[index]->supplier << endl;
+            cout << "Last Updated: " << items[index]->lastUpdated;
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+
+            cout << "\nAre you sure you want to delete this item?" << endl;
+            cout << "1. Yes" << endl;
+            cout << "2. No" << endl;
+            cout << "Enter choice: ";
+
+            string confirm;
+            getline(cin, confirm);
+
+            // Remove leading and trailing spaces
+            confirm.erase(0, confirm.find_first_not_of(" "));
+            confirm.erase(confirm.find_last_not_of(" ") + 1);
+
+            if (!isStrictlyNumeric(confirm)) {
+                system("cls");
+                cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+                cout << "               DELETE PRODUCT                 " << endl;
+                cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+                cout << "Invalid input! Please enter 1 or 2.\n";
+                pressEnter();
+                continue;
+            }
+
+            int choice = stoi(confirm);
+            if (choice != 1 && choice != 2) {
+                system("cls");
+                cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+                cout << "               DELETE PRODUCT                 " << endl;
+                cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+                cout << "Invalid choice! Please enter 1 or 2.\n";
+                pressEnter();
+                continue;
+            }
+
+            if (choice == 2) {
+                system("cls");
+                cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+                cout << "               DELETE PRODUCT                 " << endl;
+                cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+                cout << "Deletion cancelled.\n";
+                pressEnter();
+                return;
+            }
+
+            delete items[index];
+            items[index] = nullptr;
+
+            for (int i = index; i < count - 1; i++) {
+                items[i] = items[i + 1];
+            }
+            items[count - 1] = nullptr;
+            count--;
+
+            system("cls");
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "               DELETE PRODUCT                 " << endl;
+            cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+            cout << "Item deleted successfully!\n";
+            pressEnter();
+            return;
         }
     }
-
-    if (index == -1) {
-        cout << "Product not found!\n";
-        pressEnter();
-        return;
-    }
-
-    cout << items[index]->lastUpdated;
-    delete items[index];
-    for (int i = index; i < count - 1; i++) {
-        items[i] = items[i + 1];
-    }
-    count--;
-
-    cout << "Item deleted successfully!\n";
-    pressEnter();
 }
-
+//Sales Display
 void displaySales(merchObject* items[], int count, SaleRecord sales[], int salesCount) {
     system("cls");
     if (salesCount == 0) {
@@ -646,10 +982,18 @@ void displaySales(merchObject* items[], int count, SaleRecord sales[], int sales
         return;
     }
 
+    // Add null check for items array
+    if (items == nullptr) {
+        cout << "Error: Invalid inventory data!\n";
+        pressEnter();
+        return;
+    }
+
     cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
     cout << "                                                     SALES RECORDS                                                     " << endl;
     cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
     cout << left << setw(10) << "ID"
+        << setw(20) << "Product Name"
         << setw(15) << "Quantity"
         << setw(15) << "Total"
         << "Date" << endl;
@@ -657,7 +1001,20 @@ void displaySales(merchObject* items[], int count, SaleRecord sales[], int sales
 
     double totalSales = 0;
     for (int i = 0; i < salesCount; i++) {
+        string productName = "[Deleted Product]";
+
+        // Safer item lookup with bounds and null checking
+        if (count > 0) {
+            for (int j = 0; j < count && items[j] != nullptr; j++) {
+                if (items[j]->generatedID == sales[i].productId) {
+                    productName = items[j]->merchID;
+                    break;
+                }
+            }
+        }
+
         cout << left << setw(10) << sales[i].productId
+            << setw(20) << productName
             << setw(15) << sales[i].quantitySold
             << "$" << setw(14) << fixed << setprecision(2) << sales[i].totalAmount
             << sales[i].date;
@@ -668,7 +1025,7 @@ void displaySales(merchObject* items[], int count, SaleRecord sales[], int sales
     cout << "Total Sales: $" << fixed << setprecision(2) << totalSales << endl;
     pressEnter();
 }
-
+//Sales Record
 void recordSale(merchObject* items[], int count, SaleRecord sales[], int& salesCount) {
     system("cls");
     if (salesCount >= MAX_SALES) {
@@ -729,194 +1086,121 @@ void recordSale(merchObject* items[], int count, SaleRecord sales[], int& salesC
     pressEnter();
 }
 
-// Add before the main function
-void loadInventory(merchObject* items[], int& count) {
-    ifstream inFile("inventory.txt");
-    if (!inFile) {
-        return;
-    }
-
-    string line;
-    getline(inFile, line); // Skip separator
-    getline(inFile, line); // Skip header
-    getline(inFile, line); // Skip separator
-
-    while (getline(inFile, line) && count < MAX_INVENTORY) {
-        if (line == "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=") {
-            items[count] = new merchObject();
-
-            getline(inFile, line);
-            items[count]->generatedID = stoi(line);
-
-            getline(inFile, line);
-            items[count]->merchID = line;
-
-            getline(inFile, line);
-            items[count]->productPrice = stod(line);
-
-            getline(inFile, line);
-            items[count]->quantity = stoi(line);
-
-            getline(inFile, line);
-            items[count]->supplier = line;
-
-            getline(inFile, items[count]->dateAdded);
-            getline(inFile, items[count]->lastUpdated);
-
-            getline(inFile, line); // Read the closing separator
-            count++;
-        }
-    }
-    inFile.close();
-}
-
-
-class Node {
-public:
-    merchObject* data;
-    Node* next;
-
-    Node(merchObject* obj) : data(obj), next(nullptr) {}
-};
-
-class LinkedList {
-private:
-    Node* head;
-    int size;
-
-public:
-    LinkedList() : head(nullptr), size(0) {}
-
-    void addProduct(merchObject* product) {
-        Node* newNode = new Node(product);
-        if (!head) {
-            head = newNode;
-        }
-        else {
-            Node* current = head;
-            while (current->next) {
-                current = current->next;
-            }
-            current->next = newNode;
-        }
-        size++;
-    }
-
-    merchObject* getProduct(int id) {
-        Node* current = head;
-        while (current) {
-            if (current->data->generatedID == id) {
-                return current->data;
-            }
-            current = current->next;
-        }
-        return nullptr;
-    }
-
-    bool removeProduct(int id) {
-        if (!head) return false;
-
-        if (head->data->generatedID == id) {
-            Node* temp = head;
-            head = head->next;
-            delete temp;
-            size--;
-            return true;
-        }
-
-        Node* current = head;
-        while (current->next) {
-            if (current->next->data->generatedID == id) {
-                Node* temp = current->next;
-                current->next = current->next->next;
-                delete temp;
-                size--;
-                return true;
-            }
-            current = current->next;
-        }
-        return false;
-    }
-
-    ~LinkedList() {
-        while (head) {
-            Node* temp = head;
-            head = head->next;
-            delete temp->data;
-            delete temp;
-        }
-    }
-};
-
-int main() {
-    srand(static_cast<unsigned int>(time(0)));
-
-    merchObject** inventory = new merchObject * [MAX_INVENTORY]();
-    SaleRecord* sales = new SaleRecord[MAX_SALES]();
-    int inventoryCount = 0;
-    int salesCount = 0;
-
-    loadInventory(inventory, inventoryCount);
-
+// Customer Purchase Menu
+void customerPurchaseMenu(merchObject* items[], int count, SaleRecord sales[], int& salesCount) {
     int choice;
-
-    do {
+    while (true) {
         system("cls");
+        cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+        cout << "                                  CUSTOMER PURCHASE MENU                                      " << endl;
+        cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
+        cout << "Available Products:" << endl;
         cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
-        cout << "              MERCHANDISE MANAGEMENT           " << endl;
-        cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
-        cout << "             1. Add Merch Product              " << endl;
-        cout << "             2. Update Merch Product           " << endl;
-        cout << "             3. Track Sales Product            " << endl;
-        cout << "             4. Display Merch Product          " << endl;
-        cout << "             5. Search Merch Product           " << endl;
-        cout << "             6. Delete Merch Product           " << endl;
-        cout << "             7. Save and Exit                  " << endl;
+        cout << left << setw(10) << "ID"
+            << setw(20) << "Name"
+            << setw(10) << "Price"
+            << setw(10) << "Stock" << endl;
         cout << "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=" << endl;
 
-        choice = getValidMenuChoice();
-
-        switch (choice) {
-        case 1:
-            if (inventoryCount < MAX_INVENTORY) {
-                inventory[inventoryCount] = new merchObject();
-                inventory[inventoryCount]->addItem();
-                inventoryCount++;
+        // Display available products
+        for (int i = 0; i < count; i++) {
+            if (items[i] != nullptr && items[i]->quantity > 0) {
+                cout << left << setw(10) << items[i]->generatedID
+                    << setw(20) << items[i]->merchID
+                    << "$" << setw(9) << fixed << setprecision(2) << items[i]->productPrice
+                    << items[i]->quantity << endl;
             }
-            else {
-                cout << "Inventory is full!\n";
-                pressEnter();
-            }
-            break;
-        case 2:
-            updateItem(inventory, inventoryCount);
-            break;
-        case 3:
-            recordSale(inventory, inventoryCount, sales, salesCount);
-            displaySales(inventory, inventoryCount, sales, salesCount);
-            break;
-        case 4:
-            displayMerch(inventory, inventoryCount);
-            break;
-        case 5:
-            searchItem(inventory, inventoryCount);
-            break;
-        case 6:
-            deleteItem(inventory, inventoryCount);
-            break;
-        case 7:
-            saveInventory(inventory, inventoryCount);
-            cout << "Inventory saved. Exiting...\n";
-            break;
         }
-    } while (choice != 7);
 
 
-    for (int i = 0; i < inventoryCount; i++) {
-        delete inventory[i];
+        cout << "\n1. Purchase Product" << endl;
+        cout << "2. View Receipt" << endl;
+        cout << "3. Return to Main Menu" << endl;
+        cout << "Enter choice (1-3): ";
+
+        string input;
+        getline(cin, input);
+
+        if (!isStrictlyNumeric(input)) {
+            cout << "Invalid choice! Please enter a number.\n";
+            pressEnter();
+            continue;
+        }
+
+        choice = stoi(input);
+        if (choice < 1 || choice > 3) {
+            cout << "Invalid choice! Please enter a number between 1 and 3.\n";
+            pressEnter();
+            continue;
+        }
+
+        if (choice == 1) {
+            if (salesCount >= MAX_SALES) {
+                cout << "Sales record is full!\n";
+                pressEnter();
+                continue;
+            }
+
+            cout << "\nEnter product ID: ";
+            string idInput;
+            getline(cin, idInput);
+
+            if (!isStrictlyNumeric(idInput)) {
+                cout << "Invalid ID format!\n";
+                pressEnter();
+                continue;
+            }
+
+            int id = stoi(idInput);
+            merchObject* item = nullptr;
+            for (int i = 0; i < count; i++) {
+                if (items[i] != nullptr && items[i]->generatedID == id) {
+                    item = items[i];
+                    break;
+                }
+            }
+
+            if (!item) {
+                cout << "Product not found!\n";
+                pressEnter();
+                continue;
+            }
+
+            cout << "Enter quantity: ";
+            string qtyInput;
+            getline(cin, qtyInput);
+
+            if (!isStrictlyNumeric(qtyInput)) {
+                cout << "Invalid quantity format!\n";
+                pressEnter();
+                continue;
+            }
+
+            int quantity = stoi(qtyInput);
+            if (quantity > item->quantity) {
+                cout << "Insufficient stock!\n";
+                pressEnter();
+                continue;
+            }
+
+            sales[salesCount].productId = id;
+            sales[salesCount].quantitySold = quantity;
+            sales[salesCount].totalAmount = quantity * item->productPrice;
+            sales[salesCount].date = item->getCurrentDateTime();
+
+            salesCount++;
+            item->quantity -= quantity;
+            item->lastUpdated = item->getCurrentDateTime();
+
+            cout << "\nPurchase successful!\n";
+            cout << "Total amount: $" << fixed << setprecision(2) << sales[salesCount - 1].totalAmount << endl;
+            pressEnter();
+        }
+        else if (choice == 2) {
+            displaySales(items, count, sales, salesCount);
+        }
+        else if (choice == 3) {
+            return;
+        }
     }
-    delete[] inventory;
-    delete[] sales;
-
-    return 0;
 }
